@@ -40,10 +40,13 @@ def webhook():
     message = request.values.get("Body", "").strip()
     now = datetime.now().isoformat()
 
+    print(f"[{phone}] Incoming message: '{message}' at {now}")
+
     data = load_data()
 
     # Initialize new user
     if phone not in data:
+        print(f"[{phone}] New user detected. Initializing profile.")
         data[phone] = {
             "start_date": now,
             "state": "intro",
@@ -55,9 +58,11 @@ def webhook():
 
     user = data[phone]
     state = user.get("state", "intro")
+    print(f"[{phone}] Current state: {state}")
 
     # 🔁 Reset command
     if message.lower() in ["reset", "/reset"]:
+        print(f"[{phone}] Resetting user journey.")
         user["state"] = "intro"
         user["day"] = 1
         user["profile"] = {}
@@ -69,37 +74,50 @@ def webhook():
     elif message.lower() == "next":
         user["day"] += 1
         user["state"] = f"day_{user['day']}_start"
+        print(f"[{phone}] Moving to {user['state']}")
         reply = f"👣 Moving to day {user['day']}... Let’s go!"
 
     # 🧠 Normal conversation flow
     else:
         user["responses"].append({"timestamp": now, "message": message})
+        print(f"[{phone}] Logged user message.")
 
         step = get_step(state)
+        print(f"[{phone}] Matching step: {step['state'] if step else 'None'}")
 
         if step:
-            if validate_response(state, message):
+            is_valid = validate_response(state, message)
+            print(f"[{phone}] GPT validation: {is_valid}")
+
+            if is_valid:
                 if "save_to" in step:
                     path = step["save_to"].split(".")
                     ref = user
                     for p in path[:-1]:
                         ref = ref.setdefault(p, {})
                     ref[path[-1]] = message
+                    print(f"[{phone}] Saved message to {step['save_to']}")
 
                 reply = step["message"]
                 user["state"] = step.get("next_state", state)
+                print(f"[{phone}] Transitioned to: {user['state']}")
             else:
                 reply = "That’s a good start. Can you reflect a bit more deeply or give a more specific example?"
+                print(f"[{phone}] Response rejected. Asking for deeper reflection.")
         else:
             reply = "I'm here to support you. Type 'Next' to continue your journey."
+            print(f"[{phone}] No matching state. Sent fallback reply.")
 
     # 🟢 Add compliment if past 5 responses
     if len(user["responses"]) >= 5:
         compliment = generate_compliment(user)
         reply += f"\n\n🟢 Compliment of the day: {compliment}"
+        print(f"[{phone}] Compliment added.")
 
     save_data(data)
+    print(f"[{phone}] Data saved.")
 
+    print(f"[{phone}] Final reply: {reply}\n{'-'*40}")
     resp = MessagingResponse()
     resp.message(reply)
     return str(resp)

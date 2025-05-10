@@ -1,0 +1,11 @@
+steps:
+  - trigger: 1
+    message: "Welcome! Tell me the 3 happiest moments of your day."
+  - trigger: 2
+    message: "What is one meaningful goal you want to achieve in the next 6 months?"
+  - trigger: 3
+    message: "What are your 3 biggest strengths?"
+  - trigger: 4
+    message: "What is the biggest blocker preventing you from reaching your goal?"
+  - trigger: 5
+    message: "You're doing great. Keep going — I believe in you. 🌟"

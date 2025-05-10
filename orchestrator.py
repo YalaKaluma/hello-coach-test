@@ -7,9 +7,13 @@ from datetime import datetime
 app = Flask(__name__)
 DATA_PATH = "data/users.json"
 
-# ✅ Create the 'data' folder BEFORE anything else
+# ✅ Create data folder and users.json file if missing
 if not os.path.exists("data"):
     os.makedirs("data")
+if not os.path.exists(DATA_PATH):
+    with open(DATA_PATH, "w") as f:
+        json.dump({}, f)
+
 
 
 # Load user data from file

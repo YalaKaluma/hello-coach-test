@@ -1,11 +1,24 @@
-steps:
-  - trigger: 1
-    message: "Welcome! Tell me the 3 happiest moments of your day."
-  - trigger: 2
-    message: "What is one meaningful goal you want to achieve in the next 6 months?"
-  - trigger: 3
-    message: "What are your 3 biggest strengths?"
-  - trigger: 4
-    message: "What is the biggest blocker preventing you from reaching your goal?"
-  - trigger: 5
-    message: "You're doing great. Keep going — I believe in you. 🌟"
+journey:
+  - state: intro
+    message: "Hey there! Welcome to your coaching journey. When you're ready, type 'Next' to begin."
+    next_state: waiting_for_happy
+
+  - state: waiting_for_happy
+    message: "Beautiful. Now, what is one meaningful goal you’d like to pursue over the next 6 months?"
+    save_to: profile.happy_moments
+    next_state: waiting_for_goal
+
+  - state: waiting_for_goal
+    message: "That's a great goal. What are 3 strengths you bring to the table to help you reach it?"
+    save_to: profile.goal
+    next_state: waiting_for_strengths
+
+  - state: waiting_for_strengths
+    message: "Noted. One last thing — what’s the biggest fear or blocker that could get in your way?"
+    save_to: profile.strengths
+    next_state: waiting_for_blocker
+
+  - state: waiting_for_blocker
+    message: "Thank you for being open. We're ready to move into daily coaching mode now. Type 'Next' to start Day 2!"
+    save_to: profile.blocker
+    next_state: ready

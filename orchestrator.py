@@ -143,12 +143,14 @@ def webhook():
 
     
 
-    # 🟢 Add compliment if past 5 responses
-    if len(user["responses"]) >= 5:
+
+    # 🟢 Add compliment only when day has just started
+    if message.lower() == "next" and user["state"].startswith("day_"):
         compliment = generate_compliment(user)
         reply += f"\n\n🟢 Compliment of the day: {compliment}"
         logger.info(f"[{phone}] Compliment added.")
-
+    
+    
     save_data(data)
     logger.info(f"[{phone}] Data saved.")
 

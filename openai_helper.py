@@ -2,6 +2,7 @@ import openai
 import os
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
+client = openai.OpenAI()
 
 def generate_compliment(user_data):
     recent_messages = user_data.get("responses", [])[-5:]
@@ -13,8 +14,6 @@ def generate_compliment(user_data):
         "Write a warm, personal compliment that highlights the user's strengths or effort."
     )
 
-    client = openai.OpenAI()
-
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[{"role": "user", "content": prompt}],
@@ -23,3 +22,24 @@ def generate_compliment(user_data):
     )
 
     return response.choices[0].message.content.strip()
+
+
+
+def validate_response(state, message):
+    prompt = (
+        f"You are a coach reviewing a user's reflection.\n\n"
+        f"State: {state}\n"
+        f"User input: \"{message}\"\n\n"
+        f"Based on the state and the input, is this a sufficiently thoughtful and specific response to move on?\n"
+        f"Answer only YES or NO."
+    )
+
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=3,
+        temperature=0
+    )
+
+    answer = response.choices[0].message.content.strip().lower()
+    return "yes" in answer

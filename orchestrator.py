@@ -1,6 +1,7 @@
 import os
 import json
 import yaml
+from openai_helper import generate_compliment
 from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
 from datetime import datetime
@@ -9,8 +10,6 @@ from datetime import datetime
 app = Flask(__name__)
 DATA_PATH = "data/users.json"
 JOURNEY_PATH = "journeys/default.yaml"
-
-
 
 # ✅ Create data folder and users.json file if missing
 if not os.path.exists("data"):

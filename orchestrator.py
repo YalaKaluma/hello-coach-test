@@ -34,17 +34,41 @@ def webhook():
     message = request.values.get("Body", "").strip()
     now = datetime.now().isoformat()
 
-    # Load and update data
     data = load_data()
+
+    # Initialize user if new
     if phone not in data:
         data[phone] = {"start_date": now, "responses": []}
+
+    # Log this message
     data[phone]["responses"].append({"timestamp": now, "message": message})
     save_data(data)
 
-    # Respond with confirmation
+    # Count how many messages the user has sent
+    msg_count = len(data[phone]["responses"])
+
+    # Select the response based on the message count
+    if msg_count == 1:
+        reply = ("Welcome! Let’s start your 28-day journey. "
+                 "Today, tell me about the 3 happiest moments of your day.")
+    elif msg_count == 2:
+        reply = ("Great start! Now, what is one meaningful goal you want to achieve "
+                 "in the next 6 months?")
+    elif msg_count == 3:
+        reply = ("Thanks for sharing. Next: What are your 3 biggest strengths, "
+                 "and how can they help you achieve your goal?")
+    elif msg_count == 4:
+        reply = ("Amazing. Now let’s go deeper — what’s the biggest blocker, fear, "
+                 "or constraint standing in your way?")
+    else:
+        reply = "You're doing great. Keep going — I believe in you. 🌟"
+
+    # Send back the reply
     resp = MessagingResponse()
-    resp.message("Thanks for your message. It's been recorded.")
+    resp.message(reply)
     return str(resp)
+
+
 
 @app.route("/debug", methods=["GET"])
 def debug():

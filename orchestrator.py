@@ -4,8 +4,12 @@ from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
 from datetime import datetime
 
+
 app = Flask(__name__)
 DATA_PATH = "data/users.json"
+JOURNEY_PATH = "journeys/default.yaml"
+
+
 
 # ✅ Create data folder and users.json file if missing
 if not os.path.exists("data"):
@@ -14,6 +18,9 @@ if not os.path.exists(DATA_PATH):
     with open(DATA_PATH, "w") as f:
         json.dump({}, f)
 
+# Load journey steps on startup
+with open(JOURNEY_PATH, "r") as f:
+    JOURNEY = yaml.safe_load(f)["steps"]
 
 
 # Load user data from file
@@ -47,21 +54,17 @@ def webhook():
     # Count how many messages the user has sent
     msg_count = len(data[phone]["responses"])
 
-    # Select the response based on the message count
-    if msg_count == 1:
-        reply = ("Welcome! Let’s start your 28-day journey. "
-                 "Today, tell me about the 3 happiest moments of your day.")
-    elif msg_count == 2:
-        reply = ("Great start! Now, what is one meaningful goal you want to achieve "
-                 "in the next 6 months?")
-    elif msg_count == 3:
-        reply = ("Thanks for sharing. Next: What are your 3 biggest strengths, "
-                 "and how can they help you achieve your goal?")
-    elif msg_count == 4:
-        reply = ("Amazing. Now let’s go deeper — what’s the biggest blocker, fear, "
-                 "or constraint standing in your way?")
-    else:
-        reply = "You're doing great. Keep going — I believe in you. 🌟"
+    # Use YAML journey steps based on message count
+    reply = "You're doing great. Keep going — I believe in you. 🌟"
+    for step in JOURNEY:
+        if step["trigger"] == msg_count:
+            reply = step["message"]
+            break
+
+    if msg_count >= 5:
+        compliment = generate_compliment(data[phone])
+        reply += f"\n\n🟢 Compliment of the day: {compliment}"
+
 
     # Send back the reply
     resp = MessagingResponse()

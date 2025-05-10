@@ -74,12 +74,20 @@ def webhook():
         user["responses"] = []
         reply = "🔁 Your journey has been reset. Ready to start again? Type 'Next' to begin."
 
-    # ⏭ Next command
+    # ⏭ Next command (smart state-aware logic)
     elif message.lower() == "next":
-        user["day"] += 1
-        user["state"] = f"day_{user['day']}_start"
-        logger.info(f"[{phone}] Moving to {user['state']}")
-        reply = f"👣 Moving to day {user['day']}... Let’s go!"
+        if state == "intro":
+            user["state"] = "waiting_for_happy"
+            reply = "Let’s begin. Tell me about a happy moment from your day."
+            logger.info(f"[{phone}] Transitioning from intro → waiting_for_happy")
+        elif state == "waiting_for_blocker":
+            user["day"] += 1
+            user["state"] = f"day_{user['day']}_start"
+            reply = f"👣 Great! Starting Day {user['day']}."
+            logger.info(f"[{phone}] Transitioning from blocker → {user['state']}")
+        else:
+            reply = "Let’s keep going. I’m here to help — tell me more."
+            logger.info(f"[{phone}] 'Next' received but no transition. Staying in {user['state']}")
 
     # 🧠 Normal conversation flow
     else:

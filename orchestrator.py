@@ -46,6 +46,16 @@ def webhook():
     resp.message("Thanks for your message. It's been recorded.")
     return str(resp)
 
+@app.route("/debug", methods=["GET"])
+def debug():
+    try:
+        with open(DATA_PATH, "r") as f:
+            data = json.load(f)
+        return f"<pre>{json.dumps(data, indent=2)}</pre>"
+    except Exception as e:
+        return f"Error reading data: {e}", 500
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)

@@ -98,9 +98,16 @@ def webhook():
         step = get_step(state)
         logger.info(f"[{phone}] Matching step: {step['state'] if step else 'None'}")
 
+#        if step:
+#            is_valid = validate_response(state, message)
+#            logger.info(f"[{phone}] GPT validation: {is_valid}")
+
         if step:
-            is_valid = validate_response(state, message)
+            recent_history = user["responses"][-5:]
+            context = "\n".join([f"- {r['message']}" for r in recent_history])
+            is_valid = validate_response(state, message, context)
             logger.info(f"[{phone}] GPT validation: {is_valid}")
+                     
 
             if is_valid:
                 if "save_to" in step:
@@ -117,14 +124,23 @@ def webhook():
             else:
                 #reply = "That’s a good start. Can you reflect a bit more deeply or give a more specific example?"
                 #logger.info(f"[{phone}] Response rejected. Asking for deeper reflection.")
-                reply = generate_followup(state, message)
-                logger.info(f"[{phone}] Response rejected. Sent AI follow-up: {reply}")
+                #reply = generate_followup(state, message)
+                #logger.info(f"[{phone}] Response rejected. Sent AI follow-up: {reply}")
+
+                reply = generate_followup(state, message, context)
+#                logger.info(f"[{phone}] No matching step. Sent fallback follow-up: {reply}")
+                logger.info(f"[{phone}] Response rejected. Sent follow-up: {reply}")
         
         else:
             #reply = "I'm here to support you. Type 'Next' to continue your journey."
             #logger.info(f"[{phone}] No matching state. Sent fallback reply.")
-            reply = generate_followup(state, message)
-            logger.info(f"[{phone}] Response rejected. Sent AI follow-up: {reply}")
+            #reply = generate_followup(state, message)
+            #logger.info(f"[{phone}] Response rejected. Sent AI follow-up: {reply}")
+
+            reply = generate_followup(state, message, context)
+#            logger.info(f"[{phone}] No matching step. Sent fallback follow-up: {reply}")
+            logger.info(f"[{phone}] Response rejected. Sent follow-up: {reply}")
+
     
 
     # 🟢 Add compliment if past 5 responses

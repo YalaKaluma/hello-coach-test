@@ -1,32 +1,43 @@
 import os
 import json
+import yaml
+import logging
+from openai_helper import validate_response, generate_compliment
 from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
 from datetime import datetime
+from openai_helper import validate_response, generate_compliment, generate_followup
 
 app = Flask(__name__)
 DATA_PATH = "data/users.json"
+JOURNEY_PATH = "journeys/default.yaml"
 
-# ✅ Create data folder and users.json file if missing
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# ✅ Create data folder and users.json if missing
 if not os.path.exists("data"):
     os.makedirs("data")
 if not os.path.exists(DATA_PATH):
     with open(DATA_PATH, "w") as f:
         json.dump({}, f)
 
+# ✅ Load YAML journey steps
+with open(JOURNEY_PATH, "r") as f:
+    JOURNEY = yaml.safe_load(f)["journey"]
 
-
-# Load user data from file
+# ✅ Load/save user data
 def load_data():
-    if not os.path.exists(DATA_PATH):
-        return {}
     with open(DATA_PATH, "r") as f:
         return json.load(f)
 
-# Save user data to file
 def save_data(data):
     with open(DATA_PATH, "w") as f:
         json.dump(data, f, indent=2)
+
+# ✅ Get journey step by state
+def get_step(state):
+    return next((s for s in JOURNEY if s["state"] == state), None)
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
@@ -34,41 +45,117 @@ def webhook():
     message = request.values.get("Body", "").strip()
     now = datetime.now().isoformat()
 
+    logger.info(f"[{phone}] Incoming message: '{message}' at {now}")
+
     data = load_data()
 
-    # Initialize user if new
+    # Initialize new user
     if phone not in data:
-        data[phone] = {"start_date": now, "responses": []}
+        logger.info(f"[{phone}] New user detected. Initializing profile.")
+        data[phone] = {
+            "start_date": now,
+            "state": "intro",
+            "day": 1,
+            "profile": {},
+            "responses": [],
+            "conversation_log": []
+        }
 
-    # Log this message
-    data[phone]["responses"].append({"timestamp": now, "message": message})
-    save_data(data)
+    user = data[phone]
+    state = user.get("state", "intro")
+    logger.info(f"[{phone}] Current state: {state}")
 
-    # Count how many messages the user has sent
-    msg_count = len(data[phone]["responses"])
+    # 🔁 Reset command
+    if message.lower() in ["reset", "/reset"]:
+        logger.info(f"[{phone}] Resetting user journey.")
+        user["state"] = "intro"
+        user["day"] = 1
+        user["profile"] = {}
+        user["conversation_log"] = []
+        user["responses"] = []
+        reply = "🔁 Your journey has been reset. Ready to start again? Type 'Next' to begin."
 
-    # Select the response based on the message count
-    if msg_count == 1:
-        reply = ("Welcome! Let’s start your 28-day journey. "
-                 "Today, tell me about the 3 happiest moments of your day.")
-    elif msg_count == 2:
-        reply = ("Great start! Now, what is one meaningful goal you want to achieve "
-                 "in the next 6 months?")
-    elif msg_count == 3:
-        reply = ("Thanks for sharing. Next: What are your 3 biggest strengths, "
-                 "and how can they help you achieve your goal?")
-    elif msg_count == 4:
-        reply = ("Amazing. Now let’s go deeper — what’s the biggest blocker, fear, "
-                 "or constraint standing in your way?")
+    # ⏭ Next command (smart state-aware logic)
+    elif message.lower() == "next":
+        if state == "intro":
+            user["state"] = "waiting_for_happy"
+            reply = "Let’s begin. Tell me about a happy moment from your day."
+            logger.info(f"[{phone}] Transitioning from intro → waiting_for_happy")
+        elif state == "waiting_for_blocker":
+            user["day"] += 1
+            user["state"] = f"day_{user['day']}_start"
+            reply = f"👣 Great! Starting Day {user['day']}."
+            logger.info(f"[{phone}] Transitioning from blocker → {user['state']}")
+        else:
+            reply = "Let’s keep going. I’m here to help — tell me more."
+            logger.info(f"[{phone}] 'Next' received but no transition. Staying in {user['state']}")
+
+    # 🧠 Normal conversation flow
     else:
-        reply = "You're doing great. Keep going — I believe in you. 🌟"
+        user["responses"].append({"timestamp": now, "message": message})
+        logger.info(f"[{phone}] Logged user message.")
 
-    # Send back the reply
+        step = get_step(state)
+        logger.info(f"[{phone}] Matching step: {step['state'] if step else 'None'}")
+
+#        if step:
+#            is_valid = validate_response(state, message)
+#            logger.info(f"[{phone}] GPT validation: {is_valid}")
+
+        if step:
+            recent_history = user["responses"][-5:]
+            context = "\n".join([f"- {r['message']}" for r in recent_history])
+            is_valid = validate_response(state, message, context)
+            logger.info(f"[{phone}] GPT validation: {is_valid}")
+                     
+
+            if is_valid:
+                if "save_to" in step:
+                    path = step["save_to"].split(".")
+                    ref = user
+                    for p in path[:-1]:
+                        ref = ref.setdefault(p, {})
+                    ref[path[-1]] = message
+                    logger.info(f"[{phone}] Saved message to {step['save_to']}")
+
+                reply = step["message"]
+                user["state"] = step.get("next_state", state)
+                logger.info(f"[{phone}] Transitioned to: {user['state']}")
+            else:
+                #reply = "That’s a good start. Can you reflect a bit more deeply or give a more specific example?"
+                #logger.info(f"[{phone}] Response rejected. Asking for deeper reflection.")
+                #reply = generate_followup(state, message)
+                #logger.info(f"[{phone}] Response rejected. Sent AI follow-up: {reply}")
+
+                reply = generate_followup(state, message, context)
+#                logger.info(f"[{phone}] No matching step. Sent fallback follow-up: {reply}")
+                logger.info(f"[{phone}] Response rejected. Sent follow-up: {reply}")
+        
+        else:
+            #reply = "I'm here to support you. Type 'Next' to continue your journey."
+            #logger.info(f"[{phone}] No matching state. Sent fallback reply.")
+            #reply = generate_followup(state, message)
+            #logger.info(f"[{phone}] Response rejected. Sent AI follow-up: {reply}")
+
+            reply = generate_followup(state, message, context)
+#            logger.info(f"[{phone}] No matching step. Sent fallback follow-up: {reply}")
+            logger.info(f"[{phone}] Response rejected. Sent follow-up: {reply}")
+
+    
+
+    # 🟢 Add compliment if past 5 responses
+    if len(user["responses"]) >= 5:
+        compliment = generate_compliment(user)
+        reply += f"\n\n🟢 Compliment of the day: {compliment}"
+        logger.info(f"[{phone}] Compliment added.")
+
+    save_data(data)
+    logger.info(f"[{phone}] Data saved.")
+
+    logger.info(f"[{phone}] Final reply: {reply}\n{'-'*40}")
     resp = MessagingResponse()
     resp.message(reply)
     return str(resp)
-
-
 
 @app.route("/debug", methods=["GET"])
 def debug():
@@ -78,7 +165,6 @@ def debug():
         return f"<pre>{json.dumps(data, indent=2)}</pre>"
     except Exception as e:
         return f"Error reading data: {e}", 500
-
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

@@ -21,4 +21,39 @@ journey:
   - state: waiting_for_blocker
     message: "Thank you for being open. We're ready to move into daily coaching mode now. Type 'Next' to start Day 2!"
     save_to: profile.blocker
-    next_state: ready
+    next_state: day_2_start
+
+  - state: day_2_start
+    message: "Welcome to Day 2! What’s one thing you’re proud of from yesterday?"
+    save_to: reflections.day_2
+    next_state: day_3_start
+
+  - state: day_3_start
+    message: "Let’s build momentum. What challenge will you take on today?"
+    save_to: reflections.day_3
+    next_state: day_4_start
+
+  - state: day_4_start
+    message: "How are you feeling today, emotionally and physically?"
+    save_to: reflections.day_4
+    next_state: day_5_start
+
+  - state: day_5_start
+    message: "What’s one small win you can celebrate this week?"
+    save_to: reflections.day_5
+    next_state: day_6_start
+
+  - state: day_6_start
+    message: "Is there anything you need to let go of today?"
+    save_to: reflections.day_6
+    next_state: day_7_start
+
+  - state: day_7_start
+    message: "Reflection day! What’s the most important thing you’ve learned about yourself this week?"
+    save_to: reflections.day_7
+    next_state: day_8_start
+
+  - state: day_8_start
+    message: "Welcome to Week 2! What intention do you want to set for the next 7 days?"
+    save_to: reflections.day_8
+    next_state: day_9_start

@@ -6,6 +6,7 @@ from openai_helper import validate_response, generate_compliment
 from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
 from datetime import datetime
+from openai_helper import validate_response, generate_compliment, generate_followup
 
 app = Flask(__name__)
 DATA_PATH = "data/users.json"
@@ -114,11 +115,17 @@ def webhook():
                 user["state"] = step.get("next_state", state)
                 logger.info(f"[{phone}] Transitioned to: {user['state']}")
             else:
-                reply = "That’s a good start. Can you reflect a bit more deeply or give a more specific example?"
-                logger.info(f"[{phone}] Response rejected. Asking for deeper reflection.")
+                #reply = "That’s a good start. Can you reflect a bit more deeply or give a more specific example?"
+                #logger.info(f"[{phone}] Response rejected. Asking for deeper reflection.")
+                reply = generate_followup(state, message)
+                logger.info(f"[{phone}] Response rejected. Sent AI follow-up: {reply}")
+        
         else:
-            reply = "I'm here to support you. Type 'Next' to continue your journey."
-            logger.info(f"[{phone}] No matching state. Sent fallback reply.")
+            #reply = "I'm here to support you. Type 'Next' to continue your journey."
+            #logger.info(f"[{phone}] No matching state. Sent fallback reply.")
+            reply = generate_followup(state, message)
+            logger.info(f"[{phone}] Response rejected. Sent AI follow-up: {reply}")
+    
 
     # 🟢 Add compliment if past 5 responses
     if len(user["responses"]) >= 5:
